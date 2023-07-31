@@ -1,3 +1,4 @@
+```
 import numpy as np
 import pandas as pd
 from sklearn.compose import ColumnTransformer
@@ -55,19 +56,21 @@ preprocessor = ColumnTransformer([
     )
     
 ])
+```
 
 # Add the classifier to the pipeline
+```
 pipeline = Pipeline([
     ('preprocessor', preprocessor ),
     ('classifier', KNeighborsClassifier() )
 ])
 
 train = data
+```
 
 
 
-
-
+```
 from sklearn.base import TransformerMixin, BaseEstimator
 from sklearn.utils import check_array
 
@@ -89,7 +92,13 @@ target = dataset.pop('class')
 pipeline.fit(dataset, target)
 
 z = pipeline.predict(dataset, target)
+```
 
+```
+from sklearn.datasets import  fetch_california_housing,load_diabetes,fetch_openml
+#1461,31,29
+x = fetch_openml(data_id=1461, as_frame=True, parser='pandas')
+```
 
 
 
