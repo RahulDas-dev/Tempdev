@@ -1,40 +1,101 @@
-Real-time Privacy-Protected Synthetic Data Generator for Enhanced Fraud Detection in Financial Transactions
+import numpy as np
+import pandas as pd
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.preprocessing import OneHotEncoder, StandardScaler, FunctionTransformer
+from sklearn.ensemble import RandomForestClassifier
+
+numerical_pipeline = Pipeline([
+    ('imputer', SimpleImputer(strategy='mean')),
+    ('scaler', StandardScaler())
+])
+
+categorical_pipeline = Pipeline([
+    ('imputer', SimpleImputer(strategy='most_frequent')),
+    ('onehot', OneHotEncoder(handle_unknown='ignore'))
+])
+
+def from_bool_to_number(x: np.ndarray) -> np.ndarray:
+    return np.where(x, 1.0, 0.0)
 
 
-In accordance with the present invention, a novel synthetic data generator for real-time fraud detection in financial transactions is disclosed. This innovative system offers several notable features that set it apart from conventional methods. Firstly, the synthetic data generator operates in real-time, enabling timely analysis and detection of fraudulent activities. Furthermore, it exhibits exceptional efficiency by requiring significantly less training data in comparison to traditional techniques such as Generative Adversarial Networks (GANs) and Variational Autoencoders (VAEs). This unique capability enhances scalability and reduces the burden of acquiring and processing vast amounts of training data. Importantly, the synthetic data generator is specifically designed to excel in generating synthetic tabular data, catering to the requirements of financial institutions and their diverse datasets."
+def from_number_to_bool(x: np.ndarray) -> np.ndarray:
+    return np.where(x > 0.5, True, False)
 
 
-Moreover, in the realm of financial institutions, stringent privacy regulations often hinder the sharing of sensitive data even within internal departments. However, the innovative nature of our synthetic data generator addresses this challenge by enabling privacy-protected data sharing. With our solution, financial institutions can securely share synthesized data across different branches and departments, facilitating collaboration and enhancing the overall fraud detection system. This breakthrough technology empowers institutions to collectively benefit from the insights gained through fraud detection without compromising the privacy and confidentiality of individual transaction data. By employing our proposed synthetic data generator, financial institutions can transcend the barriers that previously impeded the seamless exchange of information, leading to improved fraud detection and prevention across the industry.
+BooleanTransformer = FunctionTransformer(from_bool_to_number, from_number_to_bool)
 
-"Furthermore, it is crucial to note that existing synthetic data generators often fall short in meeting the stringent requirements of real-time financial fraud detection systems. Many of these solutions rely heavily on neural networks, necessitating substantial amounts of training data and extended processing time. This limitation renders them unsuitable for the dynamic nature of financial institutions' fraud detection needs. However, our proposed synthetic data generator overcomes these challenges by introducing a groundbreaking approach. By leveraging advanced algorithms tailored specifically for real-time operations, our system excels in swiftly generating synthetic data for fraud detection, without compromising accuracy or quality. This unparalleled capability not only minimizes the training data requirements but also reduces the time necessary for training, empowering financial institutions to promptly detect and combat fraud in a highly efficient and effective manner.
+# Combine the preprocessing pipelines using ColumnTransformer
+preprocessor = ColumnTransformer([
+    (
+        'numerical', 
+         Pipeline([
+                ('imputer', SimpleImputer(strategy='mean')),
+                #('scaler', StandardScaler())
+         ]), 
+         column_selector(dtype_include=[np.number]) 
+    ),
+    (
+        'categorical', 
+          Pipeline([
+                ('imputer', SimpleImputer(strategy='most_frequent')),
+                ('onehot', OneHotEncoder(handle_unknown='ignore'))
+          ]), 
+          column_selector(dtype_include=[object, "category"]) 
+    ),
+    (
+        'boolean', 
+          Pipeline([
+                ('imputer', ReplaceInf()),
+                ('onehot', FunctionTransformer(from_bool_to_number, from_number_to_bool, check_inverse=False))
+          ]), 
+          column_selector(dtype_include=bool)
+    )
+    
+])
 
-Feel free to modify this paragraph to align with the specific features and advantages of your proposed synthetic data generator. If there's anything else you would like assistance with, please let me know.
+# Add the classifier to the pipeline
+pipeline = Pipeline([
+    ('preprocessor', preprocessor ),
+    ('classifier', KNeighborsClassifier() )
+])
+
+train = data
 
 
-Key Points of Your Proposed Synthetic Data Generator:
-1. Real-time Operation: Your synthetic data generator operates in real-time, enabling timely analysis and detection of fraudulent activities without introducing significant delays.
-2. Minimal Training Data Requirements: Unlike existing solutions like GANs and VAEs that require large amounts of training data, your synthetic data generator is designed to work efficiently with less training data.
-3. Focus on Synthetic Tabular Data: Your solution specifically targets the generation of synthetic tabular data, catering to the needs of financial institutions and their diverse datasets.
-4. Privacy-Protected Data Sharing: Your synthetic data generator facilitates privacy-protected data sharing among financial institutions, allowing the exchange of synthetic data for fraud detection without compromising individual transaction details.
-
-Comparison with Parallel Technologies:
-1. Machine Learning and AI: While machine learning and AI techniques are commonly used in fraud detection, your solution focuses on the data generation aspect rather than the analysis algorithms themselves.
-2. Blockchain Technology: Unlike blockchain, which emphasizes decentralized and immutable storage of transaction data, your synthetic data generator complements existing systems by enabling privacy-protected data sharing across institutions.
-3. Differential Privacy: Differential privacy techniques focus on protecting individual privacy while allowing analysis. Your synthetic data generator can be used in conjunction with differential privacy approaches to provide privacy-protected data for analysis.
-4. Federated Learning: Federated learning allows collaborative model training without sharing raw data, while your synthetic data generator focuses on generating synthetic data for sharing among institutions to enhance fraud detection capabilities.
-5. Secure Multi-party Computation (SMC): SMC enables joint computation on private data without revealing individual data. Your synthetic data generator complements SMC by providing synthetic data that can be used in secure computations across multiple parties.
-
-Your proposed synthetic data generator offers real-time operation, reduced training data requirements, and privacy-protected data sharing specifically tailored for fraud detection in financial transactions. It complements existing technologies by addressing the challenges of real-time operation and privacy concerns, enhancing the efficiency and effectiveness of fraud detection systems.
 
 
-Your proposed synthetic data generator can be utilized for data sharing and collaborations in the following ways:
 
-1. Privacy-Preserving Data Exchange: Financial institutions often face privacy concerns when sharing sensitive transaction data. With your synthetic data generator, institutions can generate synthetic data that closely mimics the characteristics and patterns of real data, while protecting the privacy of individual transactions. This synthetic data can be securely shared among institutions without revealing sensitive information, enabling collaborations and data-driven analysis.
+from sklearn.base import TransformerMixin, BaseEstimator
+from sklearn.utils import check_array
 
-2. Enhanced Cross-Institutional Analysis: By sharing synthetic data across multiple financial institutions, collaborative analysis and insights can be gained without the need to exchange actual transaction data. Institutions can collectively analyze the synthetic data, identifying patterns, trends, and anomalies related to fraud. This collaboration can lead to a more comprehensive understanding of fraudulent activities and facilitate the development of effective fraud detection models and strategies.
+class ReplaceInf(TransformerMixin, BaseEstimator):
 
-3. Benchmarking and Validation: Synthetic data generated by your solution can serve as a benchmark or reference dataset for financial institutions. Institutions can compare their internal data against the synthetic data to evaluate the effectiveness and accuracy of their fraud detection systems. This benchmarking process can help identify areas for improvement, refine detection algorithms, and validate the performance of fraud detection models across institutions.
+    def fit(self, X, y=None):
+        # validate and convert if possible:
+        X = check_array(X, force_all_finite=False)
+        _, counts = np.unique(X, return_counts=True)
+        ind = np.argmax(counts)
+        self.fill_val_ = X[ind]
+        return self
 
-4. Knowledge Transfer and Research: The sharing of synthetic data enables knowledge transfer and research collaborations among financial institutions. Institutions can collectively analyze the synthetic data to gain insights into emerging fraud patterns, devise preventive measures, and contribute to the broader understanding of fraud detection in the financial industry. This collaboration fosters a culture of shared expertise and supports ongoing research efforts in combating financial fraud.
+    def transform(self, X):
+        X = check_array(X, force_all_finite=False)
+        return np.where(X==np.nan, self.fill_val_, X)
 
-By leveraging your synthetic data generator for data sharing and collaborations, financial institutions can overcome privacy concerns, pool their expertise, and collectively enhance their fraud detection capabilities. It facilitates secure and privacy-protected sharing of data, promotes collaboration among institutions, and fosters innovation in fraud detection techniques and strategies.
+target = dataset.pop('class')
+pipeline.fit(dataset, target)
+
+z = pipeline.predict(dataset, target)
+
+
+
+
+from sklearn.datasets import  fetch_california_housing,load_diabetes,fetch_openml
+#1461,31,29
+x = fetch_openml(data_id=1461, as_frame=True, parser='pandas')
+
+
+
